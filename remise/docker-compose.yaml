@@ -1,0 +1,80 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    container_name: frontend
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+    restart: always
+    volumes:
+      - ./client:/var/www/client
+      - client-data:/var/www/client/build
+
+  webserver:
+    container_name: webserver
+    restart: unless-stopped
+    build: ./nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - client-data:/usr/share/nginx/html
+    depends_on:
+      - frontend
+
+  cache:
+    restart: always
+    container_name: cache
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  backend:
+    container_name: backend
+    restart: always
+    links:
+      - database
+      - cache
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+
+  database:
+    image: postgres:latest
+    ports:
+      - 15432:5432
+    environment:
+      - POSTGRES_PASSWORD=test
+      - PGADMIN_DEFAULT_EMAIL=test@test.test
+      - PGADMIN_DEFAULT_PASSWORD=test
+    volumes:
+      - db-data:/var/lib/postgresql/data/
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - 15433:80
+    environment:
+      - POSTGRES_PASSWORD=test
+      - PGADMIN_DEFAULT_EMAIL=test@test.test
+      - PGADMIN_DEFAULT_PASSWORD=test
+    depends_on:
+      - database
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin/
+
+volumes:
+  client-data:
+  redis-data:
+  db-data:
+  pgadmin-data:
